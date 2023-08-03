@@ -1,0 +1,55 @@
+' Abre un cuadro de diálogo para que el usuario seleccione el archivo Excel
+        Dim openFileDialog As New OpenFileDialog()
+        openFileDialog.Filter = "Archivos Excel|*.xls;*.xlsx"
+        openFileDialog.Title = "Seleccionar archivo Excel"
+
+        If openFileDialog.ShowDialog() = DialogResult.OK Then
+            ' Ruta del archivo seleccionado
+            Dim filePath As String = openFileDialog.FileName
+
+            ' Crea una instancia de Excel Application
+            Dim excelApp As New Application()
+
+            ' Abre el libro de Excel
+            Dim workbook As Workbook = excelApp.Workbooks.Open(filePath)
+
+            ' Obtiene la primera hoja del libro
+            Dim worksheet As Worksheet = workbook.Sheets(1)
+
+            ' Obtiene el rango utilizado en la hoja
+            Dim range As Range = worksheet.UsedRange
+
+            ' Obtiene el número de filas y columnas del rango
+            Dim rowCount As Integer = range.Rows.Count
+            Dim columnCount As Integer = range.Columns.Count
+
+            ' Limpia el DataGridView antes de mostrar los nuevos datos
+            DataGridView1.Rows.Clear()
+            DataGridView1.Columns.Clear()
+
+            ' Agrega las columnas al DataGridView
+            For col As Integer = 1 To columnCount
+                DataGridView1.Columns.Add("Columna" & col.ToString(), "Columna " & col.ToString())
+            Next
+
+            ' Agrega las filas al DataGridView
+            For row As Integer = 1 To rowCount
+                Dim rowData(columnCount - 1) As Object
+                For col As Integer = 1 To columnCount
+                    rowData(col - 1) = CType(range.Cells(row, col), Range).Value2
+                Next
+                DataGridView1.Rows.Add(rowData)
+            Next
+
+            ' Cierra el libro de Excel y la aplicación
+            workbook.Close()
+            excelApp.Quit()
+
+            ' Libera los objetos de la memoria
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet)
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook)
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp)
+            worksheet = Nothing
+            workbook = Nothing
+            excelApp = Nothing
+        End If
