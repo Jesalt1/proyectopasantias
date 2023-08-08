@@ -3,17 +3,15 @@ Imports Microsoft.Office.Interop.Excel
 
 Public Class UserControl1
 
-    Dim connectionString As String = "Data Source=TuServidor;Initial Catalog=TuBaseDeDatos;Integrated Security=True"
-    Dim dt As New Data.DataTable()
-    Dim headersLoaded As Boolean = False ' Bandera para controlar si las cabeceras ya se cargaron
-
-
-
-    Private Sub DataGridView1_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellContentClick
-
-    End Sub
-
-    Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+  'este modulos ya realiza la extracion de datos de una hoja en excel y modifica la base de datos 
+    'este sera el modulo a usar y modificar para la extraccion de la base de datos
+    'con este solo falta realizar o siguiente:
+    '--verificar la fecha en su formato especifico
+    '--verifcar que no existan usuarios repetidos
+    '--verificar que no existan campos vacios 
+    '--generar los Store Procedure para las ytransacciones en masa
+    '--realizar las transacciones correspodientes
+    Private Sub mnuexportar_Click(sender As Object, e As EventArgs) Handles mnuexportar.Click
         Dim openFileDialog As New OpenFileDialog()
         openFileDialog.Filter = "Archivos de Excel|*.xls;*.xlsx"
         If openFileDialog.ShowDialog() = DialogResult.OK Then
@@ -21,46 +19,65 @@ Public Class UserControl1
             Dim workbook As Workbook = excelApp.Workbooks.Open(openFileDialog.FileName)
             Dim worksheet As Worksheet = DirectCast(workbook.Sheets(1), Worksheet)
 
-            If Not headersLoaded Then ' Si las cabeceras aún no se han cargado, agregarlas
-                Dim firstRow As Range = worksheet.UsedRange.Rows(1)
-                For Each cell As Range In firstRow.Cells
-                    dt.Columns.Add(cell.Value)
-                Next
-                headersLoaded = True
-            End If
-
+            ' Limpiar datos previos en el DataGridView
+            DataGridView1.DataSource = Nothing
             dt.Clear()
+            dt.Columns.Clear() ' Limpia también las columnas del DataTable
 
-            For row As Integer = If(headersLoaded, 2, 1) To worksheet.UsedRange.Rows.Count
-                Dim newRow As DataRow = dt.NewRow()
+            ' Agregar columnas al DataTable
+            For col As Integer = 1 To worksheet.UsedRange.Columns.Count
+                Dim colName As String = worksheet.Cells(1, col).Value
+                dt.Columns.Add(colName)
+            Next
+
+            ' Cargar datos al DataTable, omitiendo filas en blanco
+            For row As Integer = 2 To worksheet.UsedRange.Rows.Count
+                Dim isEmptyRow As Boolean = True
                 For col As Integer = 1 To worksheet.UsedRange.Columns.Count
-                    newRow(col - 1) = worksheet.Cells(row, col).Value
+                    Dim cellValue As Object = worksheet.Cells(row, col).Value
+                    If cellValue IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(cellValue.ToString()) Then
+                        isEmptyRow = False
+                        Exit For
+                    End If
                 Next
-                dt.Rows.Add(newRow)
+
+                If Not isEmptyRow Then
+                    Dim newRow As DataRow = dt.NewRow()
+                    For col As Integer = 1 To worksheet.UsedRange.Columns.Count
+                        newRow(col - 1) = worksheet.Cells(row, col).Value
+                    Next
+                    dt.Rows.Add(newRow)
+                End If
             Next
 
             DataGridView1.DataSource = dt
 
             excelApp.Quit()
         End If
+
+
     End Sub
 
-    Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
-        Dim connectionString As String = "Data Source=TuServidor;Initial Catalog=TuBaseDeDatos;Integrated Security=True"
+    Private Sub mnulimpiar_Click(sender As Object, e As EventArgs) Handles mnulimpiar.Click
+
+        Dim connectionString As String = "Data Source=DESKTOP-AGBCSLF\servidor;Initial Catalog=pruebas; ;Integrated Security=True;"
         Dim connection As New SqlConnection(connectionString)
         Dim adapter As New SqlDataAdapter()
 
         connection.Open()
 
         For Each row As DataRow In dt.Rows
-            Dim columnNames As String = String.Join(", ", dt.Columns.Cast(Of DataColumn)().Select(Function(column) column.ColumnName))
-            Dim parameterNames As String = String.Join(", ", dt.Columns.Cast(Of DataColumn)().Select(Function(column) "@" & column.ColumnName))
-            Dim commandText As String = $"INSERT INTO TuTabla ({columnNames}) VALUES ({parameterNames})"
-            Dim command As New SqlCommand(commandText, connection)
+            Dim cedula As String = row("Cedula").ToString()
+            Dim nombre As String = row("Nombre").ToString()
+            Dim apellido As String = row("Apellido").ToString()
 
-            For Each column As DataColumn In dt.Columns
-                command.Parameters.AddWithValue("@" & column.ColumnName, row(column))
-            Next
+            Dim commandText As String = "Actualizacion" ' Nombre del procedimiento almacenado
+            Dim command As New SqlCommand(commandText, connection)
+            command.CommandType = CommandType.StoredProcedure
+
+            command.Parameters.AddWithValue("@Nombre", nombre)
+            command.Parameters.AddWithValue("@Apellido", apellido)
+            command.Parameters.AddWithValue("@cedula", cedula)
 
             command.ExecuteNonQuery()
         Next
@@ -68,4 +85,3 @@ Public Class UserControl1
         connection.Close()
         MessageBox.Show("Datos guardados correctamente.")
     End Sub
-End Class
