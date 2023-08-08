@@ -3,6 +3,13 @@ Imports Microsoft.Office.Interop.Excel
 
 Public Class UserControl1
 
+    Dim dt As New Data.DataTable()
+    Dim headersLoaded As Boolean = False ' Bandera para controlar si las cabeceras ya se cargaron
+
+    Dim excelApp As Application
+    Dim workbook As Workbook
+    Dim worksheet As Worksheet
+
   'este modulos ya realiza la extracion de datos de una hoja en excel y modifica la base de datos 
     'este sera el modulo a usar y modificar para la extraccion de la base de datos
     'con este solo falta realizar o siguiente:
@@ -60,28 +67,37 @@ Public Class UserControl1
 
     Private Sub mnulimpiar_Click(sender As Object, e As EventArgs) Handles mnulimpiar.Click
 
+
         Dim connectionString As String = "Data Source=DESKTOP-AGBCSLF\servidor;Initial Catalog=pruebas; ;Integrated Security=True;"
         Dim connection As New SqlConnection(connectionString)
         Dim adapter As New SqlDataAdapter()
 
         connection.Open()
 
-        For Each row As DataRow In dt.Rows
-            Dim cedula As String = row("Cedula").ToString()
-            Dim nombre As String = row("Nombre").ToString()
-            Dim apellido As String = row("Apellido").ToString()
+        Try
 
-            Dim commandText As String = "Actualizacion" ' Nombre del procedimiento almacenado
-            Dim command As New SqlCommand(commandText, connection)
-            command.CommandType = CommandType.StoredProcedure
+            For Each row As DataRow In dt.Rows
+                Dim cedula As String = row("Cedula").ToString()
+                Dim nombre As String = row("Nombre").ToString()
+                Dim apellido As String = row("Apellido").ToString()
 
-            command.Parameters.AddWithValue("@Nombre", nombre)
-            command.Parameters.AddWithValue("@Apellido", apellido)
-            command.Parameters.AddWithValue("@cedula", cedula)
+                Dim commandText As String = "Actualizacion" ' Nombre del procedimiento almacenado
+                Dim command As New SqlCommand(commandText, connection)
+                command.CommandType = CommandType.StoredProcedure
 
-            command.ExecuteNonQuery()
-        Next
+                command.Parameters.AddWithValue("@Nombre", nombre)
+                command.Parameters.AddWithValue("@Apellido", apellido)
+                command.Parameters.AddWithValue("@cedula", cedula)
 
-        connection.Close()
-        MessageBox.Show("Datos guardados correctamente.")
+                command.ExecuteNonQuery()
+            Next
+
+            connection.Close()
+            MessageBox.Show("Datos guardados correctamente.")
+
+        Catch ex As Exception
+            MessageBox.Show("Error en el formato excel a cargar en la base de datos: " & ex.Message, "Prueba de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
     End Sub
+end class
