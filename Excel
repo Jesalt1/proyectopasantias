@@ -1,7 +1,14 @@
-Imports System.Data.SqlClient
 Imports Microsoft.Office.Interop.Excel
+Imports DevExpress.Export.Xl
+Imports System.Data
+Imports System.Data.SqlClient
+Imports OfficeOpenXml
 
-Public Class UserControl1
+Imports DevExpress.XtraGrid
+
+Imports System.Data.OleDb
+
+Public Class pruebas
 
     Dim dt As New Data.DataTable()
     Dim headersLoaded As Boolean = False ' Bandera para controlar si las cabeceras ya se cargaron
@@ -10,14 +17,155 @@ Public Class UserControl1
     Dim workbook As Workbook
     Dim worksheet As Worksheet
 
-  'este modulos ya realiza la extracion de datos de una hoja en excel y modifica la base de datos 
+    ''\\DESKTOP-AGBCSLF\Respaldos DB
+
+    'metodo numero dos
+    'conexion y extraccion de datos excel
+    Dim ds As New DataSet
+    Dim da As OleDbDataAdapter
+    Dim conn As OleDb.OleDbConnection
+
+    'conexion de base de datos 
+    Dim cnn As SqlConnection
+    Dim sqlBC As SqlBulkCopy
+    Private Sub mnuempleados_Click(sender As Object, e As EventArgs) Handles mnuempleados.Click
+        ' Abre un cuadro de diálogo para que el usuario seleccione el archivo Excel
+        Dim openFileDialog As New OpenFileDialog With {
+            .Filter = "Archivos Excel|*.xls;*.xlsx",
+            .Title = "Seleccionar archivo Excel"
+        }
+
+        If openFileDialog.ShowDialog() = DialogResult.OK Then
+            ' Ruta del archivo seleccionado
+            Dim filePath As String = openFileDialog.FileName
+
+            ' Crea una instancia de Excel Application
+            Dim excelApp As New Application()
+
+            ' Abre el libro de Excel
+            Dim workbook As Workbook = excelApp.Workbooks.Open(filePath)
+
+            ' Obtiene la primera hoja del libro
+            Dim worksheet As Worksheet = workbook.Sheets(1)
+
+            ' Obtiene el rango utilizado en la hoja
+            Dim range As Range = worksheet.UsedRange
+
+            ' Obtiene el número de filas y columnas del rango
+            Dim rowCount As Integer = range.Rows.Count
+            Dim columnCount As Integer = range.Columns.Count
+
+            ' Limpia el DataGridView antes de mostrar los nuevos datos
+            DataGridView1.Rows.Clear()
+            DataGridView1.Columns.Clear()
+
+            ' Agrega las columnas al DataGridView
+            For col As Integer = 1 To columnCount
+                DataGridView1.Columns.Add("Columna" & col.ToString(), "Columna " & col.ToString())
+            Next
+
+            ' Agrega las filas al DataGridView
+            For row As Integer = 1 To rowCount
+                Dim rowData(columnCount - 1) As Object
+                For col As Integer = 1 To columnCount
+                    rowData(col - 1) = CType(range.Cells(row, col), Range).Value2
+                Next
+                DataGridView1.Rows.Add(rowData)
+            Next
+
+            ' Cierra el libro de Excel y la aplicación
+            workbook.Close()
+            excelApp.Quit()
+
+            ' Libera los objetos de la memoria
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet)
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook)
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp)
+            worksheet = Nothing
+            workbook = Nothing
+            excelApp = Nothing
+        End If
+    End Sub
+    Private Sub mnubuscar_Click(sender As Object, e As EventArgs) Handles mnubuscar.Click
+        Dim connectionString As String = "Data Source=DESKTOP-AGBCSLF\servidor;Initial Catalog=pruebas; ;Integrated Security=True;"
+        Using connection As New SqlConnection(connectionString)
+            Try
+                connection.Open()
+                MessageBox.Show("Conexión exitosa", "Prueba de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Information)
+
+
+                Dim queryString As String = "SELECT * FROM af_tipoActivos;"
+                Using command As New SqlCommand(queryString, connection)
+                    Using reader As SqlDataReader = command.ExecuteReader()
+                        While reader.Read()
+                            ' Aquí puedes manejar los datos obtenidos de la consulta
+                            ' Mostrar los datos por consola
+                            Console.WriteLine("leyendo")
+
+                        End While
+                    End Using
+                End Using
+
+            Catch ex As Exception
+                MessageBox.Show("Error en la conexión: " & ex.Message, "Prueba de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End Using
+    End Sub
+
+    Private Sub mnuguardar_Click(sender As Object, e As EventArgs) Handles mnuguardar.Click
+        Dim connectionString As String = "Data Source=DESKTOP-AGBCSLF\servidor;Initial Catalog=pruebas; ;Integrated Security=True;"
+        Using conection As New SqlConnection(connectionString)
+            Try
+                Dim rutaExcel As New OpenFileDialog
+                Dim xsheet As String = ""
+                With rutaExcel
+                    .Filter = "Archivos Excel|*.xls;*.xlsx"
+                    .Title = "Seleccionar archivo Excel"
+                    .ShowDialog()
+
+                End With
+
+                If rutaExcel.FileName.ToString <> "" Then
+                    Console.WriteLine("La ruta excel tiene " & rutaExcel.FileName.ToString)
+                    Dim archivoExcel As String = rutaExcel.ToString
+                    Dim excelApp As New Application()
+                    Dim workbook As Workbook = excelApp.Workbooks.Open(archivoExcel)
+
+                    xsheet = workbook.Sheets(1)
+
+                    conn = New OleDb.OleDbConnection("Provider=Microsoft.ACE.OLEDB.12.0;" & "data source=" & archivoExcel & "; " & "Extended Properties='Excel 16.0 xml; HDR = yes;'")
+                    Try
+                        conn.Open()
+                        da = New OleDbDataAdapter("SELECT * FROM [" & xsheet & "$]", conn)
+                        ds = New DataSet
+                        da.Fill(ds)
+
+                        sqlBC = New SqlBulkCopy(cnn)
+                        sqlBC.DestinationTableName = "TablaPrueba"
+                        sqlBC.WriteToServer(ds.Tables(0))
+                    Catch ex As Exception
+
+                    End Try
+                End If
+
+            Catch ex As Exception
+
+            End Try
+        End Using
+
+    End Sub
+
+    'este modulos ya realiza la extracion de datos de una hoja en excel y modifica la base de datos 
     'este sera el modulo a usar y modificar para la extraccion de la base de datos
     'con este solo falta realizar o siguiente:
-    '--verificar la fecha en su formato especifico
-    '--verifcar que no existan usuarios repetidos
-    '--verificar que no existan campos vacios 
-    '--generar los Store Procedure para las ytransacciones en masa
-    '--realizar las transacciones correspodientes
+    '--verificar la fecha en su formato especifico                  ( )
+    '--verifcar que no existan usuarios repetidos                   ( )
+    '--verificar que no existan campos vacios                       ( )
+    '--generar los Store Procedure para las ytransacciones en masa  ( )
+    '--realizar las transacciones correspodientes                   ( )
+
+
+    'proceso de revision los header
     Private Sub mnuexportar_Click(sender As Object, e As EventArgs) Handles mnuexportar.Click
         Dim openFileDialog As New OpenFileDialog()
         openFileDialog.Filter = "Archivos de Excel|*.xls;*.xlsx"
@@ -26,10 +174,11 @@ Public Class UserControl1
             Dim workbook As Workbook = excelApp.Workbooks.Open(openFileDialog.FileName)
             Dim worksheet As Worksheet = DirectCast(workbook.Sheets(1), Worksheet)
 
+
             ' Limpiar datos previos en el DataGridView
             DataGridView1.DataSource = Nothing
             dt.Clear()
-            dt.Columns.Clear() ' Limpia también las columnas del DataTable
+            dt.Columns.Clear() 'Limpia también las columnas del DataTable
 
             ' Agregar columnas al DataTable
             For col As Integer = 1 To worksheet.UsedRange.Columns.Count
@@ -58,6 +207,18 @@ Public Class UserControl1
             Next
 
             DataGridView1.DataSource = dt
+
+            ' Desseleccionar la primera fila después de cargar los datos
+            DataGridView1.ClearSelection()
+            'estableciendo el dgv esto para evitar errores al cargar el excel y realizar modificaciones no establecidas
+            DataGridView1.ReadOnly = True
+            DataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            DataGridView1.EnableHeadersVisualStyles = False
+            DataGridView1.AllowUserToOrderColumns = False
+            DataGridView1.Dock = DockStyle.Fill
+            DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            DataGridView1.Enabled = False
+
 
             excelApp.Quit()
         End If
@@ -100,4 +261,8 @@ Public Class UserControl1
         End Try
 
     End Sub
-end class
+
+    Private Sub mnusalir_Click(sender As Object, e As EventArgs) Handles mnusalir.Click
+        Me.Dispose()
+    End Sub
+End Class
