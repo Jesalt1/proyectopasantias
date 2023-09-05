@@ -1,0 +1,11 @@
+use NameDB
+
+alter database [NameDB]
+set recovery simple;
+go
+
+DBCC shrinkfile (NameDB_log, 10);
+
+alter database [NameDB]
+set recovery full;
+go
