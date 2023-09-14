@@ -1,0 +1,236 @@
+Private Sub Worksheet_Change(ByVal Target As Range)
+If Target.Address = "$C$7" Then
+Range("C8") = ""
+End If
+End Sub
+
+
+Sub Guardar()
+'
+' Guardar Macro
+'
+
+    InsertarFilaAlPrincipio
+    
+    LlenarTempTabla
+    
+    EliminarUltimaFila
+
+    InsertarYCopiarFila
+    
+End Sub
+
+
+Sub LlenarTempTabla()
+
+    Dim Tabla_User As ListObject
+    Dim MiTabla As ListObject
+    
+    Dim MiFila As ListRow
+
+    Dim RangoOrigen As Range
+    Dim CeldaDestino As Range
+    Dim DatosDesdeRango As Range
+    
+    Dim NuevoID As Long
+    
+    Dim PrimeraFila As ListRow
+    Dim FilaVacia As Boolean
+    
+
+    
+    ' Especifica la tabla a la que deseas agregar la fila
+    Set MiTabla = ThisWorkbook.Sheets("Registros").ListObjects("Temp_Tabla")
+
+       
+    
+    ' estableciendo Id
+    Set Tabla_User = ThisWorkbook.Sheets("Tabla Usuario").ListObjects("Tabla_Usuario")
+    
+    
+    ' Verifica si la columna "ID" en "Temp" contiene algún valor
+    If ContieneDatos(Tabla_User.ListColumns("id").DataBodyRange) Then
+        ' Calcula el nuevo ID como el valor máximo de la columna "ID" en "Temp" + 1
+        NuevoID = Application.WorksheetFunction.Max(Tabla_User.ListColumns("id").DataBodyRange) + 1
+    Else
+        ' Si la columna "ID" está vacía, establece el nuevo ID en 1
+        NuevoID = 1
+    End If
+       
+          
+       
+       ' Comprueba si la primera fila de la tabla está completamente vacía
+   Set PrimeraFila = MiTabla.ListRows(1)
+    FilaVacia = WorksheetFunction.CountA(PrimeraFila.Range) = 0
+    
+    If FilaVacia Then
+        ' Si la primera fila está vacía, utiliza esa fila en lugar de agregar una nueva
+        Set MiFila = PrimeraFila
+    Else
+        ' Si no hay una fila vacía, agrega una nueva fila al inicio de la tabla
+        Set MiFila = MiTabla.ListRows.Add(1)
+    End If
+       
+
+       
+    
+    ' Especifica el rango de celdas de origen (C3:C12)
+    Set RangoOrigen = ThisWorkbook.Sheets("Registros").Range("C3:C12")
+    
+    
+    ' Agrega una nueva fila a la tabla
+    ' Set MiFila = MiTabla.ListRows.Add(1)
+    MiFila.Range.Cells(1, 1).Value = NuevoID
+    
+    ' Copia los valores desde el rango de origen a la nueva fila
+   
+   RangoOrigen.Copy
+    MiFila.Range.Cells(1, 2).PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=True ' Limpia el portapapeles
+
+    Application.CutCopyMode = False
+    
+End Sub
+
+Function ContieneDatos(Rango As Range) As Boolean
+    On Error Resume Next
+    ContieneDatos = Not (Application.WorksheetFunction.CountBlank(Rango) = Rango.Cells.Count)
+    On Error GoTo 0
+End Function
+
+Sub InsertarFilaAlPrincipio()
+    Dim MiTabla As ListObject
+    Dim NuevaFila As ListRow
+    
+    ' Especifica la tabla a la que deseas agregar la fila
+    Set MiTabla = ThisWorkbook.Sheets("Registros").ListObjects("Temp_Tabla")
+    
+    ' Inserta una nueva fila al principio de la tabla
+    Set NuevaFila = MiTabla.ListRows.Add(1)
+     
+    
+    'InsertarYCopiarFila
+    
+End Sub
+
+Sub InsertarYCopiarFila()
+    Dim TablaOrigen As ListObject
+    Dim TablaDestino As ListObject
+    Dim TablaSistema As ListObject
+    
+    Dim NuevaFila As ListRow
+    Dim PrimeraFila As ListRow
+    Dim FilaVacia As Boolean
+    
+    
+    ' Especifica la tabla de origen y la tabla de destino
+    Set TablaOrigen = ThisWorkbook.Sheets("Registros").ListObjects("Temp_Tabla")
+    Set TablaDestino = ThisWorkbook.Sheets("Tabla Usuario").ListObjects("Tabla_Usuario")
+        
+    
+   ' Comprueba si la primera fila de la tabla está completamente vacía
+    'Set PrimeraFila = TablaDestino.ListRows(1)
+    FilaVacia = WorksheetFunction.CountA(TablaDestino.Range) = 0
+    
+    If FilaVacia Then
+        ' Si la primera fila está vacía, utiliza esa fila en lugar de agregar una nueva
+        Set NuevaFila = PrimeraFila
+    Else
+        ' Si no hay una fila vacía, agrega una nueva fila al inicio de la tabla
+        Set NuevaFila = TablaDestino.ListRows.Add(1)
+    End If
+    
+      
+    
+    ' Copia toda la fila de la tabla de origen en la última fila de la tabla de destino
+    NuevaFila.Range.Value = TablaOrigen.ListRows(1).Range.Value
+    
+      
+    'Insertamos nueva fila en la tabla del sistema
+    Set TablaSistema = ThisWorkbook.Sheets("Tabla Sistema").ListObjects("Tabla_Sistema")
+    
+    ' Comprueba si la primera fila de la tabla está completamente vacía
+    FilaVacia = WorksheetFunction.CountA(TablaSistema.Range) = 0
+    
+    If FilaVacia Then
+        ' Si la primera fila está vacía, utiliza esa fila en lugar de agregar una nueva
+        Set NuevaFila = PrimeraFila
+        GenerarFormulaEnColumnaDeTabla
+    End If
+    
+    TablaSistema.ListRows.Add
+  
+End Sub
+
+ 
+  Sub GenerarFormulaEnColumnaDeTabla()
+    Dim Hoja As Worksheet
+    Dim MiTabla As ListObject
+    Dim id As ListColumn
+    Dim compania As ListColumn
+    Dim fecha As ListColumn
+    Dim tipoAccion As ListColumn
+    Dim cedula As ListColumn
+    Dim tipocxc As ListColumn
+    Dim cxc As ListColumn
+    Dim tipovalor As ListColumn
+    Dim valor As ListColumn
+    Dim ncuotas As ListColumn
+    Dim observacion As ListColumn
+    
+    ' Especifica la hoja en la que se encuentra la tabla
+    Set Hoja = ThisWorkbook.Sheets("Tabla Sistema")
+    
+    ' Especifica la tabla en la que deseas trabajar
+    Set MiTabla = Hoja.ListObjects("Tabla_Sistema")
+    
+    ' Especifica la columna de la tabla en la que deseas colocar la fórmula
+    Set Columna = MiTabla.ListColumns("NombreDeTuColumna")
+    
+    Set id = MiTabla.ListColumns("Id")
+    Set compania = MiTabla.ListColumns("Compañia")
+    Set fecha = MiTabla.ListColumns("Fecha")
+    Set tipoAccion = MiTabla.ListColumns("Tipo Accion")
+    Set cedula = MiTabla.ListColumns("Cedula")
+    Set tipocxc = MiTabla.ListColumns("Tipo CxC")
+    Set cxc = MiTabla.ListColumns("CxC")
+    Set tipovalor = MiTabla.ListColumns("Tipo Valor")
+    Set valor = MiTabla.ListColumns("Valor/Porcentaje")
+    Set ncuotas = MiTabla.ListColumns("No. Cuotas")
+    Set observacion = MiTabla.ListColumns("Observacion")
+    
+    ' Define la fórmula que deseas colocar en la columna
+    id.DataBodyRange.Formula = "=Tabla_Usuario[@Id]"
+    compania.DataBodyRange.Formula = "=BUSCARV([@Id];Tabla_Usuario;2;FALSO)"
+    fecha.DataBodyRange.Formula = "=BUSCARV([@Id];Tabla_Usuario;3;FALSO)"
+    tipoAccion.DataBodyRange.Formula = "=SUM 1+1"
+    cedula.DataBodyRange.Formula = "=BUSCARV([@Id];Tabla_Usuario;5;FALSO)"
+    tipocxc.DataBodyRange.Formula = "=BUSCARV(Tabla_Usuario[@[Tipo CxC]];TipoCxC[#Todo];2;0)"
+    cxc.DataBodyRange.Formula = "=SI([@[Tipo CxC]]=1; BUSCARV(Tabla_Usuario[@CxC];IndividualCxC;2;FALSO);BUSCARV(Tabla_Usuario[@CxC];GeneralCxC;2;FALSO))"
+    tipovalor.DataBodyRange.Formula = "=BUSCARV(Tabla_Usuario[@[Tipo valor]];TipoValor[#Todo];2;0)"
+    valor.DataBodyRange.Formula = "=BUSCARV([@Id];Tabla_Usuario;9;FALSO)"
+    ncuotas.DataBodyRange.Formula = "=BUSCARV([@Id];Tabla_Usuario;10;FALSO)"
+    observacion.DataBodyRange.Formula = "=BUSCARV([@Id];Tabla_Usuario;11;FALSO)"
+    
+    
+    Hoja.Calculate
+End Sub
+
+
+Sub EliminarUltimaFila()
+    Dim Hoja As Worksheet
+    Dim MiTabla As ListObject
+    
+    ' Especifica la hoja en la que se encuentra la tabla
+    Set Hoja = ThisWorkbook.Sheets("Registros")
+    
+    ' Especifica la tabla en la que deseas trabajar
+    Set MiTabla = Hoja.ListObjects("Temp_Tabla")
+    
+    ' Verifica si la tabla tiene más de 4 filas
+    If MiTabla.ListRows.Count > 4 Then
+        ' Si la tabla tiene más de 4 filas, elimina la última fila
+        MiTabla.ListRows(MiTabla.ListRows.Count).Delete
+    End If
+End Sub
+
