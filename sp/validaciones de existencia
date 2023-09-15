@@ -1,0 +1,52 @@
+ALTER PROCEDURE [dbo].[ObtenerDatosPorCedula]
+    @Cedula INT, -- Cambiado a INT para reflejar que es un código numérico
+    @tipocxc INT,
+    @Descripcion VARCHAR(100), -- Cambiado a VARCHAR(100) para descripción
+    @ErrorMsg VARCHAR(200) OUTPUT
+AS
+BEGIN
+    -- Inicializa la variable de mensaje de error
+    SET @ErrorMsg = ''
+
+    -- Verificar si existe el valor de @tipocxc en la tabla ROL_Tipo_Cuenta_Cobrar
+    IF EXISTS (SELECT 1 FROM ROL_Tipo_Cuenta_Cobrar WHERE tc_codigo = @tipocxc)
+    BEGIN
+        -- Verificar si la descripción proporcionada coincide con el tipo de cuenta por cobrar
+        IF EXISTS (SELECT 1 FROM ROL_Cuentas_Cobrar WHERE cc_tipo_cxc = @tipocxc AND cc_descripcion = @Descripcion)
+        BEGIN
+            SELECT 
+                NM01CODEMP AS clave,
+                CM01IDENTI AS identificacion,
+                CM01NOMBRE AS nombre,
+                ISNULL(
+                    (SELECT CT02NOMDEP FROM ROLT02 b WHERE b.NT02CODCIA = a.NM01CODCIA AND NT02CODDEP = a.NM01CODDEP),
+                    ''
+                ) AS departamento,
+                ISNULL(
+                    (SELECT CT04NOMCAR FROM rolt04 WHERE NT04CODCIA = a.NM01CODCIA AND NT04CODDEP = a.NM01CODDEP AND NT04CODCAR = a.NM01CODCAR),
+                    ''
+                ) AS cargo,
+                a.NM01CODDEP AS iddepartamento,
+                a.NM01CODCAR AS idcargo
+            FROM rolm01 a  
+            WHERE CM01IDENTI = @Cedula
+        END
+        ELSE
+        BEGIN
+            SET @ErrorMsg = 'La descripción no coincide con el tipo de cuenta por cobrar.'
+        END
+    END
+    ELSE
+    BEGIN
+        -- Si @tipocxc no existe en la tabla ROL_Tipo_Cuenta_Cobrar, obtén el nombre correspondiente a la cédula
+        SELECT @ErrorMsg = 'El valor de tipocxc no existe en la tabla ROL_Tipo_Cuenta_Cobrar. Usuario: ' + @Cedula
+        FROM rolm01
+        WHERE CM01IDENTI = @Cedula
+
+        -- Si el nombre no se encuentra, agrega un mensaje adicional
+        IF @ErrorMsg IS NULL
+        BEGIN
+            SET @ErrorMsg = 'El valor de tipocxc no existe en la tabla ROL_Tipo_Cuenta_Cobrar y no se encontró un nombre asociado a la cédula proporcionada.'
+        END
+    END
+END
