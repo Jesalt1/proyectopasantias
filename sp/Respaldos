@@ -1,0 +1,502 @@
+USE [ROLES]
+GO
+
+/****** Object:  Table [dbo].[TEMP_ROL_Cab_CtasxCbr_Mas_JS]    Script Date: 25/09/2023 11:03:18 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[TEMP_ROL_Cab_CtasxCbr_Mas_JS](
+	[cc_compania] [int] NOT NULL,
+	[cc_usuario] [nvarchar](30) NOT NULL,
+	[cc_maquina] [nvarchar](30) NOT NULL,
+	[cc_numero] [float] NOT NULL,
+	[cc_fecha] [datetime] NULL,
+	[cc_tipo_cxc] [int] NULL,
+	[cc_ctasxcbr] [int] NULL,
+	[cc_valor] [float] NULL,
+	[cc_decripcion] [varchar](50) NULL,
+	[cc_tdes_cxc] [int] NULL,
+	[cc_ncuotas] [int] NULL,
+	[cc_num_reg] [int] NULL,
+	[cc_estado] [char](1) NULL,
+	[cc_fecha_reg] [datetime] NULL,
+	[cc_secuencia] [int] NULL
+) ON [PRIMARY]
+GO
+
+
+----------------------------------------------------------------------------------------------------
+
+USE [ROLES]
+GO
+
+/****** Object:  Table [dbo].[TEMP_ROL_Det_CtasxCbr_Mas_JS]    Script Date: 25/09/2023 11:04:56 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[TEMP_ROL_Det_CtasxCbr_Mas_JS](
+	[dc_compania] [int] NOT NULL,
+	[dc_usuario] [nvarchar](30) NOT NULL,
+	[dc_maquina] [nvarchar](30) NOT NULL,
+	[dc_numero] [float] NOT NULL,
+	[dc_secuencia] [int] NOT NULL,
+	[dc_empleado] [float] NULL,
+	[dc_iddepartamento] [int] NULL,
+	[dc_idcargo] [int] NULL,
+	[dc_departamento] [nvarchar](150) NULL,
+	[dc_cargo] [nvarchar](150) NULL,
+	[dc_base] [float] NULL,
+	[dc_por] [float] NULL,
+	[dc_valor] [float] NULL,
+	[dc_ncuotas] [int] NULL,
+	[dc_cuota] [float] NULL,
+	[dc_scuota] [float] NULL,
+	[dc_fecha] [datetime] NULL,
+	[dc_tipoc] [int] NULL,
+	[dc_observacion] [varchar](350) NULL,
+ CONSTRAINT [PK_TEMP_ROL_Det_CtasxCbr_Mas_JS] PRIMARY KEY CLUSTERED 
+(
+	[dc_compania] ASC,
+	[dc_usuario] ASC,
+	[dc_maquina] ASC,
+	[dc_numero] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+-------------------------------------------------------------------------------------------------------------------------------------------------
+USE [ROLES]
+GO
+
+/****** Object:  Table [dbo].[ROL_Cab_CtasxCbr_JS]    Script Date: 25/09/2023 11:05:21 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[ROL_Cab_CtasxCbr_JS](
+	[cc_compania] [int] NOT NULL,
+	[cc_numero] [float] NOT NULL,
+	[cc_tipo_cxc] [int] NULL,
+	[cc_ctasxcbr] [int] NULL,
+	[cc_empleado] [float] NOT NULL,
+	[cc_valor] [float] NULL,
+	[cc_decripcion] [varchar](50) NULL,
+	[cc_observacion] [nvarchar](300) NULL,
+	[cc_fecha] [date] NULL,
+	[cc_cobro_cxc] [int] NULL,
+	[cc_estado] [char](1) NULL,
+	[cc_tipoliqui] [char](1) NULL,
+	[cc_fechaproxcobro] [date] NULL,
+	[cc_masivo] [float] NULL,
+ CONSTRAINT [PK_ROL_Cab_CtasxCbr_JS] PRIMARY KEY CLUSTERED 
+(
+	[cc_compania] ASC,
+	[cc_numero] ASC,
+	[cc_empleado] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+
+-------------------------------------------------------------------------------------------------------------------------------------
+USE [ROLES]
+GO
+/****** Object:  StoredProcedure [dbo].[InsertarCabeceraCXC]    Script Date: 25/09/2023 09:30:35 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[InsertarCabeceraCXC]
+    @xmlData XML,
+	-------------------------------
+	@i_compania int=null  
+	,@i_usuario nvarchar(20)=null    
+	,@i_maquina nvarchar(30)=null 
+
+	,@o_error int=0 output    
+	,@o_mensaje nvarchar(300)='' output   
+	,@o_numero float= 0 output 
+	-------------------------------
+AS
+BEGIN
+declare @w_i int, @NoReg float, @count float, @w_masivo float  
+
+,@w_ncuota int, @w_cuota float, @w_rcuota float,  @w_tipo_c int, @w_fecha datetime   
+, @ccount int, @cnoreg int, @w_numero float,
+@w_fechap datetime  
+
+--Borando los ultimos registros realizados por el usuario de las tablas temporales 
+delete from TEMP_ROL_Cab_CtasxCbr_Mas_JS  
+where cc_usuario = @i_usuario  
+
+delete from TEMP_ROL_Det_CtasxCbr_Mas  
+where dc_usuario = @i_usuario  
+
+--Insercion de los datos extraidos del excel a xml a las tablas temporales 
+
+EXEC sp_xml_preparedocument @w_i OUTPUT, @xmlData
+
+--Insercion de la tabla temporal Cab (Cabecera)
+      INSERT INTO TEMP_ROL_Cab_CtasxCbr_Mas_JS (  
+cc_compania,  cc_usuario,   cc_maquina,   cc_numero  
+,cc_fecha,   cc_tipo_cxc,  cc_ctasxcbr,  cc_valor  
+,cc_decripcion,  cc_tdes_cxc,  cc_ncuotas,   cc_num_reg  
+,cc_estado, cc_secuencia, cc_fecha_reg)  
+select   
+compania,   usuario,   maquina,   numero  
+,fecha,    tcxc,    ctscbr,    valor  
+,descripcion,  tdes,    ncuota,    num_reg  
+,estado, secuencia, getdate()     
+  
+FROM OpenXML(@w_i,'/CXC/CAB')           
+    WITH ( compania int, usuario varchar(30),maquina varchar(30)   
+ , numero float,fecha datetime,tcxc int,ctscbr float ,valor float  
+,descripcion nvarchar(300),tdes int, ncuota float,num_reg float  
+,estado nchar(1), secuencia int  
+)  
+
+--Insercion de datos a la tabla temporal DET (Detalle)
+
+INSERT INTO TEMP_ROL_Det_CtasxCbr_Mas (  
+dc_compania,  dc_usuario,  dc_maquina,   dc_numero,   dc_secuencia  
+,dc_empleado,  dc_iddepartamento,dc_idcargo,  dc_departamento, dc_cargo  
+,dc_base,   dc_por,   dc_valor,   dc_ncuotas,   dc_cuota  
+,dc_scuota,   dc_fecha,  dc_tipoc,   dc_observacion)  
+select  
+compania,   usuario,  maquina,   numero,    secuencia  
+,empleado,     iddepartamento,  idcargo,   departamento,  cargo  
+,base,    por,   valor,    ncuota,   cuota  
+,scuota,   fecha,   tipoc,    observacion      
+  FROM OpenXML(@w_i,'/CXC/CAB/DET')     
+   WITH (  
+ usuario varchar(30) '../@usuario',maquina varchar(30) '../@maquina' ,compania int '../@compania'  
+ , numero float '../@numero',secuencia int,empleado float,iddepartamento int, idcargo int,  
+ departamento nvarchar(100), cargo nvarchar(100), base float, por float, valor float, ncuota float  
+ , cuota float, scuota float, fecha datetime, tipoc int, observacion nvarchar(200)  
+   )  
+EXEC sp_xml_removedocument @w_i   
+
+--Obteniendo el nuemero de registros cargados desde el documento excel
+set @NoReg = ISNULL((SELECT COUNT(1) FROM TEMP_ROL_Det_CtasxCbr_Mas where dc_compania = @i_compania and dc_usuario = @i_usuario and dc_maquina = @i_maquina ),0)          
+set @NoReg = isnull(@NoReg ,0)          
+if @NoReg = 0           
+begin          
+   set @o_error =1          
+   set @o_mensaje = 'No existe cxc...Verifique '    
+   set @o_numero = 0        
+   return 0          
+end 
+
+--Actualizacion del campo del numero de registros
+update TEMP_ROL_Cab_CtasxCbr_Mas_JS  
+set cc_num_reg = isnull((select sum(1) FROM TEMP_ROL_Det_CtasxCbr_Mas  
+   where  dc_compania = cc_compania  
+   and dc_usuario = cc_usuario   
+   and dc_maquina = cc_maquina  
+   and dc_numero = cc_numero ),0)  
+from TEMP_ROL_Cab_CtasxCbr_Mas_JS  
+where cc_compania = @i_compania  
+and cc_usuario = @i_usuario and cc_maquina = @i_maquina 
+
+select @w_masivo = max([cc_numero]) +1  
+from ROL_Cab_CtasxCbr_Mas  
+where cc_compania = @i_compania  
+  
+set @w_masivo = isnull(@w_masivo,1)  
+
+
+-----------------------------Inicio de insercion a tablas principales CxC iniciamos un XACT_ABORT en caso de errores------------------------------
+SET XACT_ABORT ON    
+set @count = 1       
+begin tran fact       
+ Begin Try    
+ ----------------------definimos los campos no utilizados pero necesarios como lo es el numero de cuotas que sera 1 y en valor de cuotas valdra lo que el valor especifica
+ ----------------------solo searan permitidas las cuentas por cobrar fijas y no aplican ni cuotas ni descuento porcentual y solo seran cobro mensuales
+  while @NoReg > 0 and  @count <=@NoReg          
+  begin    
+  select 
+	@w_ncuota = ISNULL(dc_ncuotas, 1),
+    @w_cuota = ISNULL(dc_valor, 0),
+    @w_rcuota = ISNULL(dc_scuota, 0),
+    @w_tipo_c = ISNULL(dc_tipoc, 2),
+    @w_fecha = dc_fecha
+  -- select *  
+     FROM TEMP_ROL_Det_CtasxCbr_Mas   
+  where dc_compania = @i_compania and dc_usuario = @i_usuario and dc_maquina = @i_maquina   
+  and dc_secuencia = @count  
+  
+  set @cnoreg = @w_ncuota  
+  set @ccount = 1  
+  -- @w_fechap  
+
+	set @w_numero = (SELECT ISNULL(MAX(cc_numero), 0) + ROW_NUMBER() OVER (ORDER BY (SELECT NULL))
+	FROM ROL_Cab_CtasxCbr WITH (TABLOCKX, HOLDLOCK)
+	WHERE cc_compania = @i_compania)
+
+
+   INSERT INTO ROL_Cab_CtasxCbr (    
+    cc_compania,  
+    cc_numero,  
+    cc_tipo_cxc,  
+    cc_ctasxcbr,  
+    cc_empleado,
+    cc_valor,   
+    cc_decripcion, 
+    cc_observacion,  
+    cc_fecha,   
+    cc_cobro_cxc,
+    cc_estado,   
+    cc_tipoliqui,  
+    cc_masivo  
+)  
+SELECT   
+    dc_compania, 
+    (SELECT ISNULL(MAX(cc_numero), 0)
+    FROM ROL_Cab_CtasxCbr WITH (TABLOCKX, HOLDLOCK)
+    WHERE cc_compania = @i_compania) 
+    + ROW_NUMBER() OVER(ORDER BY (SELECT NULL)), 
+    cc_tipo_cxc,  
+    cc_ctasxcbr, 
+    dc_empleado,
+    dc_valor, 
+    '',
+    [dc_observacion], 
+    dc_fecha, 
+    dc_tipoc,
+    'A',
+    0, 
+    @w_masivo   
+--   select *
+FROM TEMP_ROL_Det_CtasxCbr_Mas 
+JOIN TEMP_ROL_Cab_CtasxCbr_Mas_JS ON dc_compania = cc_compania  
+                                 AND dc_usuario = cc_usuario  
+                                 AND dc_maquina = cc_maquina  
+                                 AND dc_numero = cc_numero 
+								 AND dc_valor = cc_valor
+								 AND dc_secuencia = cc_secuencia
+
+WHERE dc_compania  = @i_compania 
+AND   dc_usuario   = @i_usuario 
+AND   dc_maquina   = @i_maquina   
+AND   dc_secuencia = @count;
+
+   ----------------------------------Configuracion de las fechas de cobros, en este caso las fechas seran solo fin de mes------------------
+ select @cnoreg , @ccount  
+  while @cnoreg > 0 and  @ccount <=@cnoreg     
+  begin  
+   if @w_tipo_c = 1   
+  begin  
+   if @ccount = 1   
+   begin  
+    if day(@w_fecha) > 15  
+    begin  
+     set @w_fechap = substring(convert(nvarchar(30), DATEADD(month, 1,substring(convert(nvarchar(30), @w_fecha,112),1,6)+'01'),112),1,6) + '15'  
+    end  
+    else  
+    begin  
+     set @w_fechap= substring(convert(nvarchar(30), @w_fecha,112),1,6)+'15'  
+    end  
+   end  
+   else  
+   begin  
+    set @w_fechap = DATEADD(month, 1,@w_fechap)  
+   end  
+  end  
+  if @w_tipo_c = 2  
+  begin  
+   if @ccount = 1   
+   begin  
+    set @w_fechap =  DATEADD(day,-1, DATEADD(month, 1,substring(convert(nvarchar(30),@w_fecha,112),1,6)+'01'))  
+   end  
+   else  
+   begin  
+    set @w_fechap =  DATEADD(day,-1, DATEADD(month, 1,substring(convert(nvarchar(30),DATEADD(day,1,'20200731'),112),1,6)+'01'))  
+   end  
+  end  
+  if @w_tipo_c = 3  
+  begin  
+   if @ccount = 1   
+   begin  
+    if day(@w_fecha) > 15  
+     set @w_fechap =  DATEADD(day,-1, DATEADD(month, 1,substring(convert(nvarchar(30),@w_fecha,112),1,6)+'01'))  
+    else  
+       set @w_fechap= substring(convert(nvarchar(30), @w_fecha,112),1,6)+'15'   
+   end   
+   else  
+   begin  
+    if day(@w_fechap) = 15  
+       set @w_fechap= DATEADD(day,-1, DATEADD(month, 1,substring(convert(nvarchar(30),@w_fechap,112),1,6)+'01'))  
+    else  
+     set @w_fechap=substring(convert(nvarchar(30),DATEADD(day,1,@w_fechap),112),1,6)+'15'  
+   end    
+  end  
+   insert into ROL_Det_CtasxCbr (dc_compania,dc_numero,dc_secuencia,dc_documento,dc_valor,dc_fecha_xcbr,dc_observacion,dc_estado)   
+   select dc_compania,@w_numero,@ccount,convert(nvarchar(30),dc_fecha,112),  case when ((@ccount = dc_ncuotas) and (dc_scuota != 0)) then (dc_cuota +dc_scuota) else dc_cuota end   
+   ,@w_fechap,dc_observacion,'A'  
+   FROM TEMP_ROL_Det_CtasxCbr_Mas   
+   where dc_compania = @i_compania and dc_usuario = @i_usuario and dc_maquina = @i_maquina   
+   and dc_secuencia = @count   
+  
+     
+  set @ccount = @ccount + 1  
+  end  
+  
+  
+  
+  
+  
+     set @count = @count + 1  
+  end  
+  
+  End try          
+    Begin Catch           
+       
+    set @o_error =1          
+    set @o_mensaje = 'Error Al procesar cxc.....' + ERROR_MESSAGE() + ' en la línea ' + CONVERT(NVARCHAR(255), ERROR_LINE() ) + '.'  
+	set @o_numero = 0
+    rollback tran fact           
+    return 0          
+    End Catch    
+	-------------------------------------------------------NEW TRY--------------------------------------------------
+ --Begin Try    
+ --  -- select * from ROL_Cab_CtasxCbr_Mas  
+ --  -- select * from ROL_Det_CtasxCbr_Mas  
+ --INSERT INTO ROL_Cab_CtasxCbr_Mas(  
+ -- cc_compania,  cc_numero,   cc_fecha,  cc_tipo_cxc  
+ -- ,cc_ctasxcbr,  cc_valor,   cc_decripcion, cc_tdes_cxc  
+ -- ,cc_ncuotas,  cc_num_reg,   cc_estado,  cc_usuario  
+ -- ,cc_maquina,  cc_fecha_reg)  
+ -- select   
+ --    cc_compania,  @w_masivo,   cc_fecha,  cc_tipo_cxc  
+ -- ,cc_ctasxcbr,  cc_valor,   cc_decripcion, cc_tdes_cxc  
+ -- ,cc_ncuotas,  cc_num_reg,   cc_estado,  cc_usuario  
+ -- ,cc_maquina,  cc_fecha_reg  
+ -- from TEMP_ROL_Cab_CtasxCbr_Mas_JS  
+ -- where cc_compania = @i_compania and cc_usuario = @i_usuario and cc_maquina = @i_maquina   
+ --End try          
+ -- Begin Catch           
+ --    set @o_numero=0  
+ --   set @o_error =1          
+ --   set @o_mensaje = 'Error Al guardar cab  cxc masivo.....' + ERROR_MESSAGE() + ' en la línea ' + CONVERT(NVARCHAR(255), ERROR_LINE() ) + '.'          
+ --   rollback tran fact           
+ --   return 0          
+  --End Catch   
+  ---------------------------------------------------------NEW TRY---------------------------------------------------------------------
+-- Begin Try    
+  
+ --INSERT INTO ROL_Det_CtasxCbr_Mas (  
+ --dc_compania,  dc_numero,   dc_secuencia  
+ --,dc_empleado,  dc_iddepartamento,dc_idcargo,  dc_departamento, dc_cargo  
+ --,dc_base,   dc_por,   dc_valor,   dc_ncuotas,   dc_cuota  
+ --,dc_scuota,   dc_fecha,  dc_tipoc,   dc_observacion)  
+ -- select   
+ --dc_compania,  @w_masivo,   dc_secuencia  
+ --,dc_empleado,  dc_iddepartamento,dc_idcargo,  dc_departamento, dc_cargo  
+ --,dc_base,   dc_por,   dc_valor,   dc_ncuotas,   dc_cuota  
+ --,dc_scuota,   dc_fecha,  dc_tipoc,   dc_observacion  
+ -- from TEMP_ROL_Det_CtasxCbr_Mas  
+ -- where dc_compania = @i_compania and dc_usuario = @i_usuario and dc_maquina = @i_maquina   
+--   End try          
+-- Begin Catch           
+ --  set @o_numero=0   
+ --   set @o_error =1          
+ --   set @o_mensaje = 'Error Al guardar det  cxc masivo.....' + ERROR_MESSAGE() + ' en la línea ' + CONVERT(NVARCHAR(255), ERROR_LINE() ) + '.'          
+ --   rollback tran fact           
+ --   return 0          
+--  End Catch   
+  set @o_numero = @w_masivo  
+  set @o_error =0          
+  set @o_mensaje = ' Registrado Correctamente.....Ok'     
+      
+SET XACT_ABORT OFF            
+commit tran fact   
+  
+--end  
+------------------------------------
+
+
+END
+---------------------------------------------------------------------------------------------------------------------------------------
+
+
+USE [ROLES]
+GO
+/****** Object:  StoredProcedure [dbo].[nuevo]    Script Date: 25/09/2023 11:06:52 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[nuevo]
+    @Cedula VARCHAR(50), -- Cambiado a VARCHAR(50) para la cédula
+    @tipocxc INT,
+    @CxC VARCHAR(100), -- Cambiado a VARCHAR(100) para descripción
+    @ErrorMsg VARCHAR(200) OUTPUT
+AS
+BEGIN
+    -- Inicializa la variable de mensaje de error
+    SET @ErrorMsg = ''
+
+	DECLARE @FechaActual DATETIME
+    SET @FechaActual = GETDATE()
+
+	    IF NOT EXISTS (SELECT 1 FROM rolm01 WHERE CM01IDENTI = @Cedula)
+    BEGIN
+        SET @ErrorMsg = 'Usuario con cédula ' + @Cedula + ' no encontrado.'
+        RETURN
+    END
+
+    -- Verificar si existe el valor de @tipocxc en la tabla ROL_Tipo_Cuenta_Cobrar
+    IF EXISTS (SELECT 1 FROM ROL_Tipo_Cuenta_Cobrar WHERE tc_codigo = @tipocxc)
+    BEGIN
+        -- Verificar si la descripción proporcionada coincide con el tipo de cuenta por cobrar
+        IF EXISTS (SELECT 1 FROM ROL_Cuentas_Cobrar WHERE cc_tipo_cxc = @tipocxc AND cc_descripcion = @CxC)
+        BEGIN
+            -- Consulta para obtener los campos de ambas tablas y la descripción del tipo de cuenta por cobrar
+            SELECT
+                cc.cc_tipo_cxc as [Tipo CxC],
+                cc.cc_descripcion as [CxC],
+                cc.cc_codigo as [CxC Codigo],
+                cc.cc_estado as [Estado],
+				rm.NM01CODCIA as Compania,
+                rm.NM01CODEMP AS Clave,
+                rm.CM01IDENTI AS Identificacion,
+                rm.CM01NOMBRE AS Nombre,
+                ISNULL(
+                    (SELECT CT02NOMDEP FROM ROLT02 b WHERE b.NT02CODCIA = rm.NM01CODCIA AND NT02CODDEP = rm.NM01CODDEP),
+                    ''
+                ) AS Departamento,
+                ISNULL(
+                    (SELECT CT04NOMCAR FROM rolt04 WHERE NT04CODCIA = rm.NM01CODCIA AND NT04CODDEP = rm.NM01CODDEP AND NT04CODCAR = rm.NM01CODCAR),
+                    ''
+                ) AS Cargo,
+                rm.NM01CODDEP AS iddepartamento,
+                rm.NM01CODCAR AS idcargo,
+                tc.tc_descripcion as [Tipo CxC Descripcion], -- Agregado el campo de descripción del tipo de CxC
+				@FechaActual AS [Fecha Actual] -- Agregado el campo de fecha actual
+
+            FROM ROL_Cuentas_Cobrar cc
+            INNER JOIN rolm01 rm ON cc.cc_tipo_cxc = @tipocxc AND cc.cc_descripcion = @CxC AND rm.CM01IDENTI = @Cedula
+            LEFT JOIN ROL_Tipo_Cuenta_Cobrar tc ON cc.cc_tipo_cxc = tc.tc_codigo
+        END
+        ELSE
+        BEGIN
+            SET @ErrorMsg = 'La descripción no coincide con el tipo de cuenta por cobrar. del Usuario: '+  (SELECT CM01NOMBRE FROM rolm01 WHERE CM01IDENTI = @Cedula) 
+		    + 'De cedula: ' + (SELECT CM01IDENTI FROM rolm01 WHERE CM01IDENTI = @Cedula)
+        END
+    END
+    ELSE
+    BEGIN
+        -- Si @tipocxc no existe en la tabla ROL_Tipo_Cuenta_Cobrar, obtén el nombre correspondiente a la cédula
+        SET @ErrorMsg = 'El valor de tipocxc no existe en la tabla ROL_Tipo_Cuenta_Cobrar. Usuario: ' +  (SELECT CM01NOMBRE FROM rolm01 WHERE CM01IDENTI = @Cedula) 
+		+ 'De cedula: ' + (SELECT CM01IDENTI FROM rolm01 WHERE CM01IDENTI = @Cedula)
+    END
+END
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
