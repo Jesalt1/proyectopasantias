@@ -1,0 +1,201 @@
+USE [ROLES]
+GO
+/****** Object:  StoredProcedure [dbo].[ROLSp_Cuentas_Cobrar_Masivas_Validacion_Anulacion]    Script Date: 03/10/2023 09:23:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[ROLSp_Cuentas_Cobrar_Masivas_Validacion_Anulacion]
+    @Cedula VARCHAR(50) = null, -- Cambiado a VARCHAR(50) para la cédula
+    @tipocxc INT = null,
+    @CxC int = null,
+	@valor int = null,
+	@tipo_cobro INT = null,
+	@fecha datetime = null,
+	@fecha_desde datetime = null,
+	@fecha_hasta datetime = null,
+	@observacion varchar(200) = null,
+    @ErrorMsg VARCHAR(200) = null OUTPUT,
+	@i_operacion varchar(50),
+	@i_usuario nvarchar(20)=null,     
+    @i_maquina nvarchar(30)=null,
+	@i_compania int = null,
+	@cc_numero INT = null
+AS
+BEGIN
+-------------------------------------EVENTO DE VALIDACION DE DATOS----------------------------
+if @i_operacion= 'VALDAT'        
+begin 
+
+  -- Inicializa la variable de mensaje de error
+    SET @ErrorMsg = ''
+
+	    IF NOT EXISTS (SELECT 1 FROM rolm01 WHERE CM01IDENTI = @Cedula)
+    BEGIN
+        SET @ErrorMsg = 'Usuario con cédula ' + @Cedula + ' no encontrado.'
+        RETURN
+    END
+
+    -- Verificar si existe el valor de @tipocxc en la tabla ROL_Tipo_Cuenta_Cobrar
+    IF EXISTS (SELECT 1 FROM ROL_Tipo_Cuenta_Cobrar WHERE tc_codigo = @tipocxc)
+    BEGIN
+        -- Verificar si la descripción proporcionada coincide con el tipo de cuenta por cobrar
+        IF EXISTS (SELECT 1 FROM ROL_Cuentas_Cobrar WHERE cc_tipo_cxc = @tipocxc AND cc_codigo = @CxC)
+        BEGIN
+			--Validacion de que el tipo de cobro existe
+			IF EXISTS(SELECT 1 FROM ROL_Cobro_Cuenta_Cobrar WHERE tc_codigo = @tipo_cobro)
+			BEGIN
+				 -- Consulta para obtener los campos de ambas tablas y la descripción del tipo de cuenta por cobrar
+
+				SELECT
+				--1 sel,
+                cc.cc_tipo_cxc as [Tipo CxC],
+                cc.cc_descripcion as [CxC],
+                cc.cc_codigo as [CxC Codigo],
+				@valor as Valor,
+               -- cc.cc_estado as [Estado],
+				rm.NM01CODCIA as Compania,
+                rm.NM01CODEMP AS Clave,
+                rm.CM01IDENTI AS Identificacion,
+                rm.CM01NOMBRE AS Nombre,
+				@observacion AS Observacion,
+                ISNULL(
+                    (SELECT CT02NOMDEP FROM ROLT02 b WHERE b.NT02CODCIA = rm.NM01CODCIA AND NT02CODDEP = rm.NM01CODDEP),
+                    ''
+                ) AS Departamento,
+                ISNULL(
+                    (SELECT CT04NOMCAR FROM rolt04 WHERE NT04CODCIA = rm.NM01CODCIA AND NT04CODDEP = rm.NM01CODDEP AND NT04CODCAR = rm.NM01CODCAR),
+                    ''
+                ) AS Cargo,
+                rm.NM01CODDEP AS iddepartamento,
+                rm.NM01CODCAR AS idcargo,
+                tc.tc_descripcion as [Tipo CxC Descripcion], -- Agregado el campo de descripción del tipo de CxC
+				@fecha AS [Fecha], -- Agregado el campo de fecha actual
+				(SELECT tc_codigo FROM ROL_Cobro_Cuenta_Cobrar WHERE tc_codigo = @tipo_cobro) AS [Tipo Cobro Cod],
+				(SELECT tc_descripcion FROM ROL_Cobro_Cuenta_Cobrar WHERE tc_codigo = @tipo_cobro) AS [Tipo Cobro Cod]
+
+				FROM ROL_Cuentas_Cobrar cc
+				INNER JOIN rolm01 rm ON cc.cc_tipo_cxc = @tipocxc AND cc.cc_codigo = @CxC AND rm.CM01IDENTI = @Cedula
+				LEFT JOIN ROL_Tipo_Cuenta_Cobrar tc ON cc.cc_tipo_cxc = tc.tc_codigo
+			END
+			ELSE
+			BEGIN
+				SET @ErrorMsg = 'Tipo de cobro no valido...'
+			END
+           
+        END
+        ELSE
+        BEGIN
+            SET @ErrorMsg = 'CxC no valido'
+        END
+    END
+    ELSE
+    BEGIN
+        -- Si @tipocxc no existe en la tabla ROL_Tipo_Cuenta_Cobrar, obtén el nombre correspondiente a la cédula
+        SET @ErrorMsg = 'Tipo de CxC no Valido'
+    END
+
+
+end
+
+-------------------------------------------------------------------------------------------------------------------
+
+----------------------------------------CARGA CABECERAS MODAL ANULACIONES-----------------------------------
+if @i_operacion= 'CARCAB'        
+begin 
+	SELECT RCC.*,
+       ISNULL(RTC.tc_descripcion, 'Todos') AS tipo_cxc,
+       ISNULL(RCCB.cc_descripcion, 'Todos') AS descripcion
+	   FROM ROL_Cab_CtasxCbr_Mas AS RCC
+	   LEFT JOIN ROL_Tipo_Cuenta_Cobrar AS RTC ON RTC.tc_codigo = RCC.cc_tipo_cxc 
+	   LEFT JOIN ROL_Cuentas_Cobrar AS RCCB ON RCCB.cc_codigo = RCC.cc_ctasxcbr
+	   WHERE RCC.cc_estado = 'A' AND RCC.cc_usuario = @i_usuario AND RCC.cc_maquina = @i_maquina and RCC.cc_compania = @i_compania
+end
+-----------------------------------------------------------------------------------------------------------------
+----------------------------------------CARGA CABECERAS FILTRADA MODAL ANULACIONES-----------------------------------
+if @i_operacion= 'CARCABFIL'        
+begin 
+	SELECT RCC.*,
+       ISNULL(RTC.tc_descripcion, 'Todos') AS tipo_cxc,
+       ISNULL(RCCB.cc_descripcion, 'Todos') AS descripcion
+	   FROM ROL_Cab_CtasxCbr_Mas AS RCC
+	   LEFT JOIN ROL_Tipo_Cuenta_Cobrar AS RTC ON RTC.tc_codigo = RCC.cc_tipo_cxc 
+	   LEFT JOIN ROL_Cuentas_Cobrar AS RCCB ON RCCB.cc_codigo = RCC.cc_ctasxcbr
+	   WHERE RCC.cc_estado = 'A' AND RCC.cc_usuario = @i_usuario AND RCC.cc_maquina = @i_maquina AND RCC.cc_compania = @i_compania AND RCC.cc_numero = @cc_numero
+end
+-----------------------------------------------------------------------------------------------------------------
+
+----------------------------------------CARGA CABECERAS FILTRADA POR FECHAS MODAL ANULACIONES-----------------------------------
+if @i_operacion= 'CARCABFILFEC'        
+begin 
+	SELECT RCC.*,
+       ISNULL(RTC.tc_descripcion, 'Todos') AS tipo_cxc,
+       ISNULL(RCCB.cc_descripcion, 'Todos') AS descripcion
+	   -- select *
+	   FROM ROL_Cab_CtasxCbr_Mas AS RCC
+	   LEFT JOIN ROL_Tipo_Cuenta_Cobrar AS RTC ON RTC.tc_codigo = RCC.cc_tipo_cxc 
+	   LEFT JOIN ROL_Cuentas_Cobrar AS RCCB ON RCCB.cc_codigo = RCC.cc_ctasxcbr
+	   WHERE RCC.cc_estado = 'A' 
+	   AND RCC.cc_usuario = @i_usuario 
+	   AND RCC.cc_maquina = @i_maquina 
+	   AND RCC.cc_compania = @i_compania 
+	   AND RCC.cc_fecha_reg >= @fecha_desde
+	   AND RCC.cc_fecha_reg <= @fecha_hasta
+end
+-----------------------------------------------------------------------------------------------------------------
+
+----------------------------------------CARGA DETALLES SEGUN CABECERAS-------------------------------------------
+if @i_operacion= 'CARDET'        
+begin 
+SELECT dc_compania, dc_secuencia, dc_numero, dc_empleado, dc_departamento, dc_cargo, dc_valor, dc_ncuotas, dc_cuota,
+(SELECT tc_descripcion FROM ROL_Cobro_Cuenta_Cobrar WHERE tc_codigo = t1.dc_tipoc),
+dc_observacion,
+(SELECT tc_descripcion FROM ROL_Tipo_Cuenta_Cobrar WHERE tc_codigo = t1.dc_tipocxc) AS [Tipo CxC],
+(SELECT cc_descripcion FROM ROL_Cuentas_Cobrar WHERE cc_codigo = t1.dc_cxc AND cc_tipo_cxc = t1.dc_tipocxc) AS [CxC]
+--select *
+FROM ROL_Det_CtasxCbr_mas AS t1 
+		 WHERE t1.dc_numero IN (SELECT t2.cc_masivo FROM ROL_Cab_CtasxCbr AS t2 WHERE t2.cc_masivo = @cc_numero )
+end
+-----------------------------------------------------------------------------------------------------------------
+----------------------------------------ANULAR DETALLES SEGUN SU CABECERA----------------------------------------
+if @i_operacion= 'UPDDET'        
+begin 
+	BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Primera actualización en ROL_Cab_CtasxCbr_Mas
+		-- select * from ROL_Cab_CtasxCbr_Mas
+        UPDATE ROL_Cab_CtasxCbr_Mas
+        SET cc_estado = 'F'
+        WHERE cc_numero = @cc_numero
+		AND cc_usuario = @i_usuario
+		AND cc_maquina = @i_maquina
+		AND cc_compania = @i_compania;
+
+        -- Segunda actualización en ROL_Cab_CtasxCbr
+		-- select * from ROL_Cab_CtasxCbr
+        UPDATE ROL_Cab_CtasxCbr
+        SET cc_estado = 'F'
+        WHERE cc_masivo = @cc_numero 
+		AND cc_estado = 'A'
+		AND cc_compania = @i_compania;
+
+        -- Tercera actualización en ROL_Det_CtasxCbr
+		-- select * from ROL_Det_CtasxCbr
+        UPDATE ROL_Det_CtasxCbr
+        SET dc_estado = 'F'
+        WHERE dc_numero IN (SELECT cc_numero FROM ROL_Cab_CtasxCbr WHERE cc_masivo = @cc_numero) 
+		AND dc_estado = 'A'
+		AND dc_compania = @i_compania;
+
+        COMMIT;
+    END TRY
+    BEGIN CATCH
+        -- En caso de error, realizar rollback
+        ROLLBACK;
+        THROW; -- Propaga el error
+    END CATCH;
+end
+-----------------------------------------------------------------------------------------------------------------
+
+END
