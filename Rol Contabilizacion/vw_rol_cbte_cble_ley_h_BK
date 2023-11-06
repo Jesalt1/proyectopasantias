@@ -1,0 +1,213 @@
+select compania,empleado,departamento,anio,mes,clase,tipo,sueldo,sobretiempo,comision,alimentacion        
+,otro,reembolso,difsal,vaca,FR,xiii,xiv,ingreso, iva , ingreso + iva  as total_factura,aporte_iess,prestamo_quirografario,prestamo_hipotecario        
+, prestamo,afpgenesis,admprevenir,cafeteria,celular,imp_renta,desct_varios,valor_ret_iva,ret_fuente        
+, valor_anticipo, valor_mes        
+, antimp_renta, mesimp_renta        
+, leysolidaridad, leyh
+,  sueldo_nominal      
+from (        
+         
+select compania,empleado,departamento,tipo,anio,mes        
+,clase        
+,por_iva        
+,por_ret_iva        
+,por_ret_fuente, sueldo,sueldo_nominal,sobretiempo,comision,alimentacion        
+,otro,reembolso,difsal,vaca,FR,xiii,xiv,(sueldo_nominal+sobretiempo+comision+alimentacion+otro+reembolso+difsal+vaca+FR+xiii+xiv) as ingreso        
+, iva,aporte_iess,prestamo_quirografario,prestamo_hipotecario        
+, prestamo,afpgenesis,admprevenir,cafeteria,celular,imp_renta,desct_varios        
+, valor_ret_iva        
+,  ret_fuente        
+,valor_anticipo        
+,valor_mes-ret_fuente as valor_mes        
+, antimp_renta, mesimp_renta      
+, leysolidaridad        
+, leyh
+from (        
+        
+select compania,empleado,departamento,tipo,anio,mes        
+,clase        
+,por_iva        
+,por_ret_iva        
+,por_ret_fuente        
+, (antsueldo+messueldo) as sueldo
+, (antsueldoleyh+messueldoleyh)  sueldo_nominal 
+, (antsobretiempo+messobretiempo) as sobretiempo,(antcomision+mescomision) as comision       
+,(antalimentacion+mesalimentacion) as alimentacion, (antotro+mesotro) as otro, (antreembolso+mesreembolso) as reembolso   
+, antdifsal+mesdifsal  as difsal     
+, antvaca + mesvaca as vaca  
+, (adeiva+mesiva) as iva2         
+, (antFR+mesFR) as FR         
+, (antxiii+mesxiii) as xiii         
+, (antxiv + mesxiv) as xiv         
+, (case when clase='S' then  (( (antsueldoleyh+messueldoleyh)+(antotro+mesotro)) * (por_iva*0.01)) else 0 end) as iva        
+, (antaporte_iess+mesaporte_iess) as aporte_iess        
+, (antprestamo_quirografario+mesprestamo_quirografario) as prestamo_quirografario        
+, (antprestamo_hipotecario+mesprestamo_hipotecario) as prestamo_hipotecario        
+, (antprestamo+mesprestamo) as prestamo        
+, (antafpgenesis + mesafpgenesis) as afpgenesis        
+, (antadmprevenir+mesadmprevenir) as admprevenir        
+,(antcafeteria+ mescafeteria) as cafeteria        
+,(antcelular+mescelular) as celular        
+, (antimp_renta+mesimp_renta) as imp_renta        
+,(antdesct_varios+mesdesct_varios) as desct_varios         
+, ((case when clase='S' then  (( (antsueldoleyh+messueldoleyh)+(antotro+mesotro)) * (por_iva*0.01)) else 0 end) * (por_ret_iva*0.01) ) as valor_ret_iva        
+, (case when clase='S' then  (( (antsueldoleyh+messueldoleyh)+(antotro+mesotro)) * (por_ret_fuente*0.01)) else 0 end) as ret_fuente        
+, (antsueldoleyh+antsobretiempo+antcomision+antalimentacion+antotro+antreembolso+antdifsal+antvaca+antFR+antxiii+antxiv-antaporte_iess-antprestamo_quirografario        
+-antprestamo_hipotecario-antprestamo-antafpgenesis-antadmprevenir-antcafeteria-antcelular-antimp_renta-antdesct_varios) as valor_anticipo        
+,(messueldoleyh+messobretiempo+mescomision+mesalimentacion+mesotro+mesreembolso+mesdifsal+mesvaca+mesFR+mesxiii+mesxiv-mesaporte_iess-mesprestamo_quirografario        
+-mesprestamo_hipotecario-mesprestamo-mesafpgenesis-mesadmprevenir-mescafeteria-mescelular-mesimp_renta-mesdesct_varios-leysolidaridad) as valor_mes        
+, antimp_renta, mesimp_renta      
+, leysolidaridad   
+, (antleyh + mesleyh) as leyh
+from (         
+        
+select compania,empleado,departamento,tipo,anio,mes        
+,clase        
+,por_iva        
+,por_ret_iva        
+,por_ret_fuente        
+        
+, sum(antsueldo) as antsueldo , sum(messueldo) as messueldo
+, sum(antsueldoleyh) antsueldoleyh,sum(messueldoleyh) messueldoleyh        
+, sum(antsobretiempo) as antsobretiempo, sum(messobretiempo) as messobretiempo        
+, sum(antcomision) as antcomision , sum(mescomision) as mescomision,sum(antalimentacion) as antalimentacion, sum(mesalimentacion) as mesalimentacion        
+, sum(antotro) as antotro , sum(mesotro) as mesotro,sum(antreembolso) as antreembolso , sum(mesreembolso) as mesreembolso     
+, sum(antdifsal) as antdifsal, sum(mesdifsal) as mesdifsal  
+, sum(antvaca) as antvaca , sum(mesvaca) as mesvaca      
+, sum(adeiva) as adeiva, sum(mesiva) as mesiva        
+, sum(antFR) as antFR, sum(mesFR) as mesFR          
+, sum(antxiii) as antxiii  , sum(mesxiii) as mesxiii         
+, sum(antxiv) as antxiv,  sum(mesxiv) as mesxiv         
+, sum(antaporte_iess) as antaporte_iess, sum(mesaporte_iess) as mesaporte_iess        
+, sum(antprestamo_quirografario) as antprestamo_quirografario, sum(mesprestamo_quirografario) as mesprestamo_quirografario        
+, sum(antprestamo_hipotecario) as antprestamo_hipotecario, sum(mesprestamo_hipotecario) as mesprestamo_hipotecario        
+, sum(antprestamo) as antprestamo, sum(mesprestamo)as mesprestamo        
+, sum(antafpgenesis) as antafpgenesis, sum(mesafpgenesis) as mesafpgenesis        
+, sum(antadmprevenir) as antadmprevenir, sum(mesadmprevenir) as mesadmprevenir        
+, sum(antcafeteria) as antcafeteria, sum(mescafeteria) as mescafeteria        
+, sum(antcelular) as antcelular, sum(mescelular)as mescelular        
+, sum(antimp_renta) as antimp_renta, sum(mesimp_renta) as mesimp_renta        
+, sum(antdesct_varios) as antdesct_varios, sum(mesdesct_varios) as mesdesct_varios         
+,SUM(leysolidaridad) as leysolidaridad      
+, sum(antleyh) as antleyh, sum(mesleyh) as mesleyh
+from         
+(        
+-- ((IngTotQ+IngTotM)/((100-Retencion)/100))-IngTotQ        
+SELECT    NH01CODCIA AS compania,           
+    NH01CODEMP as empleado         
+    , NH01CODDEP as departamento         
+   ,year(TH01FECPRO) as anio,month(TH01FECPRO) as mes,              
+    case when isnull(CH01CLASE,'N') = 'N' then 'Normal'          
+  else 'Servicios' end AS tipo        
+  , CH01CLASE as clase        
+  ,ROL_IVA as por_iva        
+  , ROL_PORRETIVA as por_ret_iva        
+  , ROL_PORRET as por_ret_fuente        
+  , isnull(NH01SDOFAS,0) AS antsueldo        
+  , 0 as messueldo 
+  , (isnull(NH01SDOFAS,0)-isnull(NH01SDESLEY,0)) AS antsueldoleyh  , 0 messueldoleyh      
+  , (isnull(NH01VALSOB,0) + isnull(NH01VALSOB2,0) + isnull(NH01VALSOB3,0))  as antsobretiempo, 0 as messobretiempo        
+, isnull(NH01CCCOMI,0) as antcomision , 0 as mescomision, isnull(NH01ING001,0) as antalimentacion, 0 as mesalimentacion        
+, case when CH01CLASE = 'N' then NH01ING009 else (case when (((100-isnull(ROL_PORRET,0))* 0.01)= 0) then 0 else  (NH01ING005 / ((100-ROL_PORRET)*0.01)) end ) end as antotro, 0 as mesotro         
+, (isnull(NH01ING004,0) + isnull(NH01ING008,0) + isnull(NH01MOVIL,0)) as antreembolso , 0 as mesreembolso  
+, isnull(NH01ING002,0) as antdifsal , 0 as mesdifsal  
+, isnull(NH01ING003,0) as antvaca , 0 as mesvaca  
+  
+-- , isnull(NH01FONRES,0) as antFR , 0 as mesFR        
+--, isnull(ROL_XIII_VM,0) as antxiii , 0 as mesxiii, isnull(ROL_XIV_VM,0) as antxiv , 0 as mesxiv        
+, case when CH01CLASE = 'S' then isnull(ROL_SOBRETIVA,0)  else 0 end as adeiva, 0 as mesiva        
+ , isnull(nh01fonresmes,0) as antFR , 0 as mesFR         
+, isnull(ROL_XIII_VM,0) as antxiii, 0 as mesxiii         
+, isnull(ROL_XIV_VM,0) as antxiv , 0 as mesxiv         
+, isnull(NH01APIESS,0) as antaporte_iess, 0 as mesaporte_iess        
+, isnull(NH01IESSQF,0) as antprestamo_quirografario, 0 as mesprestamo_quirografario        
+, isnull(NH01IESSHP,0) as antprestamo_hipotecario, 0 as mesprestamo_hipotecario        
+, isnull(NH01PRESTA,0) as antprestamo, 0 as mesprestamo        
+, isnull(NH01ITEM02,0) as antafpgenesis ,0 as mesafpgenesis        
+, isnull(NH01ITEM03,0) as antadmprevenir, 0 as mesadmprevenir        
+,(isnull(NH01CXC003,0)+isnull(NH01MULTAS,0)) as antcafeteria , 0 as mescafeteria        
+,isnull(NH01ITEM01,0) as antcelular, 0 as mescelular        
+, (case when ROL_CAT_IR in ('B') then 0  else isnull(NH01IMPREN,0) end) as antimp_renta, 0 as mesimp_renta        
+, (  
+isnull(NH01ITEM04,0)+isnull(NH01ITEM05,0)+isnull(NH01ITEM06,0)+isnull(NH01ITEM07,0)+isnull(NH01ITEM09,0)+isnull(NH01ITEM08,0)+isnull(NH01ITEM10,0)  
++isnull(nH01cxc001,0) + isnull(nH01cxc004,0)   
++isnull(nH01debitos,0) - isnull(NH01SDESLEY,0) 
+ ) as antdesct_varios, 0 as mesdesct_varios        
+ , 0 as leysolidaridad  
+  ,  isnull(NH01SDESLEY,0) as antleyh,0 as mesleyh      
+FROM         ROLH01 a          
+where day(TH01FECPRO) = 15          
+union all         
+SELECT NH01CODCIA AS compania,           
+    NH01CODEMP as empleado          
+   ,NH01CODDEP as departamento        
+   ,year(TH01FECPRO) as anio,month(TH01FECPRO) as mes,              
+    case when CH01CLASE = 'N' then 'Normal'          
+  else 'Servicios' end AS tipo        
+ , CH01CLASE as clase        
+ ,ROL_IVA as por_iva        
+ ,ROL_PORRETIVA as por_ret_iva        
+ ,ROL_PORRET as por_ret_fuente        
+ , 0 as antsueldo, 
+
+ -- (case when CH01CLASE = 'N' then isnull(NH01SDOFAS,0)         
+ --else        
+ --(case when (((100-isnull(ROL_PORRET,0))*0.01)= 0) then 0 else  ( (isnull(NH01SDOBAS,0) /((100-ROL_PORRET)*0.01)))-isnull(NH01SDOFAS,0) end )end)  
+ isnull(NH01SDOFAS,0)
+ AS messueldo
+  ,0 antsueldoleyh  , 	 
+  --(case when CH01CLASE = 'N' then isnull(NH01SDOFAS,0)- isnull(NH01SDESLEY,0)
+  --    else  
+  --    (case when (((100-isnull(ROL_PORRET,0))*0.01)= 0) then 0 else  (((isnull(NH01SDOBAS,0)-(
+	 -- isnull((select sum(isnull(NH01SDESLEY,0))
+	 -- from ROLH01 a1
+	 -- where a1.NH01CODCIA = a.NH01CODCIA 
+	 -- and a1.NH01CODEMP = a.NH01CODEMP
+	 -- and a1.TH01FECPRO between substring(convert(nvarchar(30),a.TH01FECPRO,112),1,6)+'01' and a.TH01FECPRO),0)
+  
+	 -- ))/((100-ROL_PORRET)*0.01)))- (isnull(NH01SDOFAS,0)-isnull(NH01SDESLEY,0)) end )  
+    
+  --    end)
+  isnull(NH01SDOFAS,0)- isnull(NH01SDESLEY,0)
+	   messueldoleyh    
+  , 0 as antsobretiempo ,(isnull(NH01VALSOB,0) + isnull(NH01VALSOB2,0) + isnull(NH01VALSOB3,0))  as messobretiempo        
+,0 as antcomision , isnull(NH01CCCOMI,0) as mescomision, 0 as antalimentacion, isnull(NH01ING001,0) as mesalimentacion        
+,0 as antotro, case when CH01CLASE = 'N' then NH01ING009 else (case when  (((100-isnull(ROL_PORRET,0))*0.01) = 0)  then 0 else  (NH01ING005 / ((100-ROL_PORRET)*0.01)) end ) end as mesotro         
+,0 as antreembolso , (isnull(NH01ING004,0)  + isnull(NH01ING008,0) + isnull(NH01MOVIL,0)) as mesreembolso     
+,0 as antdifsal , isnull(NH01ING002,0) as mesdifsal    
+ , 0 as antvaca , isnull(NH01ING003,0) as mesvaca  
+   
+--, 0 as antFR , isnull(NH01FONRES,0) as mesFR        
+--, 0 as antxiii , isnull(ROL_XIII_VM,0)  as mesxiii, 0 as antxiv , isnull(ROL_XIV_VM,0) as mesxiv        
+, 0 as adeiva,  case when CH01CLASE = 'S' then isnull(ROL_SOBRETIVA,0)  else 0 end as mesiva         
+ ,0 as antFR, isnull(nh01fonresmes,0) as mesFR         
+, 0 as antxiii  , isnull(ROL_XIII_VM,0) as mesxiii         
+, 0 as antxiv, isnull(ROL_XIV_VM,0) as mesxiv         
+, 0 as antaporte_iess, isnull(NH01APIESS,0) as antaporte_iess        
+, 0 as antprestamo_quirografario, isnull(NH01IESSQF,0) as mesprestamo_quirografario        
+, 0 as antprestamo_hipotecario, isnull(NH01IESSHP,0) as mesprestamo_hipotecario        
+, 0 as antprestamo, isnull(NH01PRESTA,0) as mesprestamo        
+, 0 as antafpgenesis, isnull(NH01ITEM02,0) as mesafpgenesis        
+, 0 as antadmprevenir, isnull(NH01ITEM03,0) as mesadmprevenir        
+, 0 as antcafeteria, (isnull(NH01CXC003,0)+isnull(NH01MULTAS,0)) as mescafeteria        
+, 0 as antcelular, isnull(NH01ITEM01,0) as mescelular        
+, 0 as antimp_renta, ( case when ROL_CAT_IR in ('B') then 0  else isnull(NH01IMPREN,0) end) as antimp_renta        
+, 0 as antdesct_varios, (  
+isnull(NH01ITEM04,0)+isnull(NH01ITEM05,0)+isnull(NH01ITEM06,0)+isnull(NH01ITEM07,0)+isnull(NH01ITEM09,0)+isnull(NH01ITEM08,0)+isnull(NH01ITEM10,0)  
++isnull(nH01cxc001,0) + isnull(nH01cxc004,0)   
++isnull(nH01debitos,0)-isnull(NH01SDESLEY,0)    
+)  as mesdesct_varios         
+ , isnull(NH01CXC011,0) as leysolidaridad
+ , 0 as antleyh, isnull(NH01SDESLEY,0) as mesleyh     
+
+FROM         ROLH01 a          
+where day(TH01FECPRO) > 15          
+) a        
+group by compania,empleado,departamento,anio,mes,tipo,clase        
+,por_iva        
+,por_ret_iva        
+,por_ret_fuente        
+        
+) b        
+) c        
+) x    
