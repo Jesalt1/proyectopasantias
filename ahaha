@@ -9,3 +9,24 @@ DBCC shrinkfile (NameDB_log, 10);
 alter database [NameDB]
 set recovery full;
 go
+
+--
+PARA CAMBIAR CONFIGURACION DE REGION
+--BASE
+ALTER DATABASE nombre_base_de_datos COLLATE <collation_name>;
+
+--COLUMNA DE TABLA
+ALTER TABLE nombre_tabla
+ALTER COLUMN nombre_columna <tipo_dato> COLLATE <collation_name>;
+
+--VERIFICAR REGION BASE DE DATOS
+SELECT name, collation_name 
+FROM sys.databases 
+WHERE name = 'tu_base_de_datos';
+
+--VERIFICAR REGION DE COLUMNAS DE UNA TABLA
+SELECT COLUMN_NAME, COLLATION_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'nombre_tabla';
+
+
