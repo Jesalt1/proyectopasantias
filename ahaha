@@ -41,3 +41,33 @@ SELECT *
 FROM TuTabla
 WHERE CampoXML.value('(/Raiz/Datos/CM01NOMBRE/text())[1]', 'VARCHAR(100)') = 'PARAMETRO A FILTRAR';
 
+--SELECT A LAS TRANSACCIONES ACTIVAS POR USUARIOS
+SELECT
+    at.transaction_id,
+    at.name AS transaction_name,
+    at.transaction_begin_time,
+    at.transaction_type,
+    at.transaction_state,
+    s.session_id,
+    s.login_name,
+    s.status,
+    r.status AS request_status,
+    r.blocking_session_id,
+    r.wait_type,
+    r.wait_time,
+    r.wait_resource,
+    r.command
+FROM
+    sys.dm_tran_active_transactions at
+JOIN
+    sys.dm_tran_session_transactions st ON at.transaction_id = st.transaction_id
+JOIN
+    sys.dm_exec_sessions s ON st.session_id = s.session_id
+LEFT JOIN
+    sys.dm_exec_requests r ON s.session_id = r.session_id
+WHERE
+    at.transaction_type = 1 -- Only user transactions
+ORDER BY
+    at.transaction_begin_time;
+
+
